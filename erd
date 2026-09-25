@@ -1,261 +1,318 @@
+# Dietary System ERD
+
+This entity-relationship diagram reflects the schema created or consumed by the PHP application. It is written in Mermaid, so it renders directly in VS Code, GitHub, and Mermaid-compatible Markdown viewers.
+
+## System Overview
+
+The overview separates the three main workflows before the detailed table view.
+
+```mermaid
+flowchart LR
+    subgraph PLANNING[People and meal planning]
+        USERS[Users]
+        PATIENTS[Patients]
+        CYCLES[Meal cycles]
+        PLANS[Meal plans]
+    end
+
+    subgraph OPERATIONS[Inventory and kitchen operations]
+        INVENTORY[Inventory]
+        STOCK[Stock logs]
+        REQS[Requisitions]
+        RETURNS[Ingredient returns]
+        WASTE[Waste logs]
+    end
+
+    subgraph PROCUREMENT[Procurement and oversight]
+        SUPPLIERS[Suppliers]
+        PURCHASES[Purchase requests]
+        ALERTS[Notifications]
+        AUDIT[Activity and edit logs]
+    end
+
+    USERS --> CYCLES
+    CYCLES --> PLANS
+    PATIENTS --> PLANS
+    PLANS --> REQS
+    REQS --> STOCK
+    INVENTORY --> STOCK
+    REQS --> RETURNS
+    INVENTORY --> WASTE
+    SUPPLIERS --> PURCHASES
+    PURCHASES --> INVENTORY
+    USERS --> ALERTS
+    USERS --> AUDIT
+```
+
+## Detailed ERD
+
+```mermaid
 erDiagram
-
-    %% ----------------------------------------------------
-    %% USER & SYSTEM LOGS
-    %% ----------------------------------------------------
-    users ||--o{ purchase_requests : "requests"
-    users ||--o{ activity_logs : "creates"
-    users ||--o{ notifications : "receives"
-    
-    users {
-        int id PK
-        varchar username
-        varchar password
-        enum role
-        enum status
-        timestamp created_at
+    USERS {
+        INT id PK
+        VARCHAR username UK
+        VARCHAR password
+        VARCHAR role
+        VARCHAR status
     }
 
-    activity_logs {
-        int id PK
-        int user_id FK
-        varchar username
-        varchar user_role
-        varchar action_text
-        timestamp created_at
+    PATIENTS {
+        INT id PK
+        VARCHAR patient_code UK
+        VARCHAR patient_name
+        VARCHAR ward
+        VARCHAR diet_type
+        TEXT dietary_restrictions
+        DATE admission_date
+        ENUM status
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
-    notifications {
-        int id PK
-        int user_id FK
-        varchar target_role
-        varchar title
-        varchar message
-        varchar link
-        tinyint is_read
-        timestamp created_at
+    PATIENT_DIET_HISTORY {
+        INT id PK
+        INT patient_id FK
+        VARCHAR previous_diet
+        VARCHAR new_diet
+        TEXT notes
+        INT changed_by
+        TIMESTAMP created_at
     }
 
-    %% ----------------------------------------------------
-    %% PATIENTS & DIET MANAGEMENT
-    %% ----------------------------------------------------
-    patients ||--o{ patient_diet_history : "has_history"
-    patients ||--o{ meal_orders : "places"
-
-    patients {
-        int id PK
-        varchar patient_code UK
-        varchar patient_name
-        varchar ward
-        varchar diet_type
-        text dietary_restrictions
-        date admission_date
-        enum status
+    MEAL_CYCLES {
+        INT id PK
+        VARCHAR cycle_name UK
+        TEXT description
+        DATE start_date
+        DATE end_date
+        ENUM status
+        INT created_by
+        DATETIME activated_at
+        INT copied_from_cycle_id FK
     }
 
-    patient_diet_history {
-        int id PK
-        int patient_id FK
-        varchar previous_diet
-        varchar new_diet
-        text notes
-        int changed_by FK
-        timestamp created_at
+    MEAL_CYCLE_WEEKS {
+        INT id PK
+        INT meal_cycle_id FK
+        TINYINT week_number
+        TIMESTAMP created_at
     }
 
-    meal_orders {
-        int id PK
-        int patient_id FK
-        text order_details
-        varchar status
-        timestamp created_at
+    MEAL_CYCLE_DAYS {
+        INT id PK
+        INT meal_cycle_week_id FK
+        VARCHAR day_name
+        TEXT breakfast
+        TEXT lunch
+        TEXT dinner
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
     }
 
-    %% ----------------------------------------------------
-    %% MEAL CYCLES & PLANNING
-    %% ----------------------------------------------------
-    meal_cycles ||--o{ meal_cycles : "copied_from"
-    meal_cycles ||--|{ meal_cycle_weeks : "contains"
-    meal_cycle_weeks ||--|{ meal_cycle_days : "contains"
-    
-    meal_plans ||--|{ meal_plan_items : "contains"
-    meal_plans ||--o{ requisitions : "generates"
-
-    meal_cycles {
-        int id PK
-        varchar cycle_name UK
-        text description
-        date start_date
-        date end_date
-        enum status
-        int created_by FK
-        int copied_from_cycle_id FK
+    MEAL_PLANS {
+        INT id PK
+        INT meal_cycle_id FK
+        INT source_cycle_day_id FK
+        DATE meal_date
+        ENUM meal_type
+        VARCHAR meal_name
+        INT servings
+        INT patient_census_total
+        TEXT notes
+        INT created_by
+        ENUM status
+        TIMESTAMP created_at
     }
 
-    meal_cycle_weeks {
-        int id PK
-        int meal_cycle_id FK
-        tinyint week_number
-        timestamp created_at
+    MEAL_PLAN_ITEMS {
+        INT id PK
+        INT meal_plan_id FK
+        INT item_id FK
+        DECIMAL quantity
+        VARCHAR unit
+        TIMESTAMP created_at
     }
 
-    meal_cycle_days {
-        int id PK
-        int meal_cycle_week_id FK
-        varchar day_name
-        text breakfast
-        text lunch
-        text dinner
+    INVENTORY {
+        INT id PK
+        VARCHAR item_name
+        VARCHAR category
+        DECIMAL quantity
+        VARCHAR unit
+        DECIMAL unit_price
+        INT reorder_point
     }
 
-    meal_plans {
-        int id PK
-        int meal_cycle_id FK
-        tinyint cycle_week_number
-        varchar cycle_day_name
-        date meal_date
-        enum meal_type
-        varchar meal_name
-        int servings
-        int patient_census_total
-        enum status
+    STOCK_LOGS {
+        INT id PK
+        INT item_id FK
+        VARCHAR type
+        DECIMAL quantity
+        DECIMAL remaining_qty
+        VARCHAR changed_by
+        INT logged_by
+        VARCHAR reason_code
+        VARCHAR batch_number
+        DATE expiry_date
+        ENUM quality_status
+        TIMESTAMP logged_at
     }
 
-    meal_plan_items {
-        int id PK
-        int meal_plan_id FK
-        int item_id FK
-        decimal quantity
-        varchar unit
+    STOCK_LOG_EDITS {
+        INT id PK
+        INT stock_log_id FK
+        VARCHAR edited_by
+        VARCHAR editor_role
+        VARCHAR reason
+        VARCHAR reviewed_by
+        TIMESTAMP reviewed_at
+        TIMESTAMP edited_at
     }
 
-    %% ----------------------------------------------------
-    %% KITCHEN REQUISITIONS & INGREDIENT MANAGEMENT
-    %% ----------------------------------------------------
-    requisitions ||--|{ requisition_items : "contains"
-    requisitions ||--o{ ingredient_returns : "originates"
-
-    requisitions {
-        int id PK
-        int meal_plan_id FK
-        enum meal_type
-        int requested_by FK
-        int approved_by FK
-        enum status
-        date requisition_date
+    REQUISITIONS {
+        INT id PK
+        INT meal_plan_id FK
+        VARCHAR meal_type
+        INT requested_by FK
+        INT approved_by FK
+        ENUM status
+        DATE requisition_date
+        TEXT notes
+        DATETIME approved_at
+        DATETIME created_at
     }
 
-    requisition_items {
-        int id PK
-        int requisition_id FK
-        int item_id FK
-        decimal quantity
+    REQUISITION_ITEMS {
+        INT id PK
+        INT requisition_id FK
+        INT item_id FK
+        DECIMAL quantity
+        VARCHAR unit
     }
 
-    ingredient_returns {
-        int id PK
-        int requisition_id FK
-        int item_id FK
-        decimal quantity_issued
-        decimal quantity_used
-        decimal quantity_returned
-        enum condition_status
-        int returned_by FK
+    INGREDIENT_RETURNS {
+        INT id PK
+        INT requisition_id FK
+        INT item_id FK
+        INT issued_stock_log_id FK
+        DECIMAL quantity_issued
+        DECIMAL quantity_used
+        DECIMAL quantity_returned
+        ENUM condition_status
+        INT returned_by FK
+        VARCHAR batch_number
+        TIMESTAMP created_at
     }
 
-    %% ----------------------------------------------------
-    %% INVENTORY & STOCK LOGS
-    %% ----------------------------------------------------
-    inventory ||--o{ meal_plan_items : "used_in"
-    inventory ||--o{ requisition_items : "requested_in"
-    inventory ||--o{ ingredient_returns : "returned_to"
-    inventory ||--o{ purchase_request_items : "ordered_in"
-    inventory ||--o{ stock_logs : "tracked_by"
-    inventory ||--o{ waste_logs : "discarded_in"
-
-    inventory {
-        int id PK
-        varchar item_name
-        varchar category
-        date expiry_date
-        int quantity
-        varchar unit
-        decimal price
-        decimal unit_price
-        int reorder_point
-        int lead_time_days
+    WASTE_LOGS {
+        INT id PK
+        INT item_id FK
+        DECIMAL quantity
+        DECIMAL unit_price
+        VARCHAR reason
+        INT disposed_by FK
+        VARCHAR disposal_type
+        DATETIME disposed_at
     }
 
-    stock_logs ||--o{ stock_log_edits : "audited_by"
-
-    stock_logs {
-        int id PK
-        int item_id FK
-        enum type
-        varchar reason_code
-        int quantity
-        decimal remaining_qty
-        date expiry_date
-        varchar batch_number
-        varchar po_number
-        enum quality_status
-        int purchase_request_id FK
+    SUPPLIERS {
+        INT id PK
+        VARCHAR supplier_name
+        VARCHAR contact_person
+        VARCHAR contact_number
+        VARCHAR email
+        VARCHAR category
+        BOOLEAN is_preferred
+        INT lead_time_days
+        DATETIME created_at
     }
 
-    stock_log_edits {
-        int id PK
-        int stock_log_id FK
-        varchar edited_by
-        varchar reason
-        decimal old_quantity
-        decimal new_quantity
-        timestamp edited_at
+    PURCHASE_REQUESTS {
+        INT id PK
+        VARCHAR pr_code UK
+        INT requested_by FK
+        INT supplier_id FK
+        ENUM status
+        TEXT notes
+        DATETIME created_at
     }
 
-    waste_logs {
-        int id PK
-        int item_id FK
-        varchar batch_no
-        decimal quantity
-        varchar unit
-        enum disposal_type
-        int disposed_by FK
-        datetime disposed_at
+    PURCHASE_REQUEST_ITEMS {
+        INT id PK
+        INT purchase_request_id FK
+        INT inventory_id FK
+        VARCHAR item_name
+        DECIMAL quantity
+        VARCHAR unit
+        DECIMAL unit_price
     }
 
-    %% ----------------------------------------------------
-    %% PROCUREMENT & SUPPLIERS
-    %% ----------------------------------------------------
-    suppliers ||--o{ purchase_requests : "supplies"
-    purchase_requests ||--|{ purchase_request_items : "contains"
-    purchase_requests ||--o{ stock_logs : "triggers_intake"
-
-    suppliers {
-        int id PK
-        varchar supplier_name
-        varchar contact_person
-        varchar contact_number
-        varchar email
-        varchar category
-        tinyint is_preferred
+    NOTIFICATIONS {
+        INT id PK
+        INT user_id FK
+        VARCHAR target_role
+        VARCHAR title
+        VARCHAR message
+        VARCHAR link
+        VARCHAR related_type
+        INT related_id
+        BOOLEAN is_read
+        TIMESTAMP created_at
     }
 
-    purchase_requests {
-        int id PK
-        varchar pr_code UK
-        int requested_by FK
-        int supplier_id FK
-        enum status
-        datetime created_at
-        datetime received_at
+    ACTIVITY_LOGS {
+        INT id PK
+        INT user_id FK
+        VARCHAR username
+        VARCHAR user_role
+        VARCHAR action_text
+        TIMESTAMP created_at
     }
 
-    purchase_request_items {
-        int id PK
-        int purchase_request_id FK
-        varchar item_name
-        decimal quantity
-        varchar unit
-        decimal unit_price
-        int inventory_id FK
-    }
+    USERS o|--o{ ACTIVITY_LOGS : creates
+    USERS o|--o{ NOTIFICATIONS : receives
+    USERS o|--o{ PATIENT_DIET_HISTORY : changes
+    USERS o|--o{ MEAL_CYCLES : creates
+    USERS o|--o{ MEAL_PLANS : creates
+    USERS ||--o{ REQUISITIONS : requests
+    USERS o|--o{ REQUISITIONS : approves
+    USERS o|--o{ INGREDIENT_RETURNS : records
+    USERS o|--o{ WASTE_LOGS : disposes
+    USERS ||--o{ PURCHASE_REQUESTS : submits
+
+    PATIENTS ||--o{ PATIENT_DIET_HISTORY : has
+
+    MEAL_CYCLES o|--o{ MEAL_CYCLES : copied_from
+    MEAL_CYCLES ||--o{ MEAL_CYCLE_WEEKS : contains
+    MEAL_CYCLE_WEEKS ||--o{ MEAL_CYCLE_DAYS : contains
+    MEAL_CYCLES o|--o{ MEAL_PLANS : generates
+    MEAL_CYCLE_DAYS o|--o{ MEAL_PLANS : sources
+
+    MEAL_PLANS ||--o{ MEAL_PLAN_ITEMS : requires
+    INVENTORY ||--o{ MEAL_PLAN_ITEMS : supplies
+
+    INVENTORY ||--o{ STOCK_LOGS : records
+    STOCK_LOGS o|--o{ STOCK_LOG_EDITS : audited_by
+    INVENTORY ||--o{ REQUISITION_ITEMS : requested_as
+    REQUISITIONS ||--o{ REQUISITION_ITEMS : contains
+    REQUISITIONS o|--o{ INGREDIENT_RETURNS : has
+    INVENTORY ||--o{ INGREDIENT_RETURNS : returned_as
+    STOCK_LOGS o|--o{ INGREDIENT_RETURNS : issued_batch
+    INVENTORY ||--o{ WASTE_LOGS : wasted
+
+    SUPPLIERS o|--o{ PURCHASE_REQUESTS : receives
+    PURCHASE_REQUESTS ||--o{ PURCHASE_REQUEST_ITEMS : contains
+    INVENTORY o|--o{ PURCHASE_REQUEST_ITEMS : linked_item
+
+    REQUISITIONS o|--o{ NOTIFICATIONS : triggers
+    MEAL_PLANS o|--o{ NOTIFICATIONS : triggers
+```
+
+## Relationship notes
+
+- `meal_cycles`, `meal_cycle_weeks`, `meal_cycle_days`, `patients`, and `patient_diet_history` are created by `ensure_patient_meal_schema()` in `config/db.php`.
+- `meal_plans`, `meal_plan_items`, and `ingredient_returns` are created or upgraded by `view/kitchen/Kitchen_dashboard.php` and `config/db.php`.
+- The explicit foreign keys currently declared in application schema code include meal-cycle hierarchy, patient diet history, meal-plan items, ingredient returns, and waste-to-inventory.
+- `requisitions`, `requisition_items`, `inventory`, `stock_logs`, `users`, `suppliers`, `purchase_requests`, and `purchase_request_items` are existing or externally managed tables consumed by the application. Their links are shown from the joins and inserts used by PHP, even where MySQL does not currently declare a foreign key.
+- Notifications use polymorphic `related_type` and `related_id`, so their links to requisitions and meal plans are application-level references rather than a single SQL foreign key.
+- `stock_logs.reason_code` embeds a requisition number for kitchen dispatch records. The `STOCK_LOGS` to `REQUISITIONS` relationship is therefore application-level, not a declared FK.
